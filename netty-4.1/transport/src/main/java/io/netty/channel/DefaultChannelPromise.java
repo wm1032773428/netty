@@ -32,27 +32,17 @@ public class DefaultChannelPromise extends DefaultPromise<Void> implements Chann
     private final Channel channel;
     private long checkpoint;
 
-    /**
-     * Creates a new instance.
-     *
-     * @param channel
-     *        the {@link Channel} associated with this future
-     */
+    //构造器
     public DefaultChannelPromise(Channel channel) {
         this.channel = checkNotNull(channel, "channel");
     }
 
-    /**
-     * Creates a new instance.
-     *
-     * @param channel
-     *        the {@link Channel} associated with this future
-     */
     public DefaultChannelPromise(Channel channel, EventExecutor executor) {
         super(executor);
         this.channel = checkNotNull(channel, "channel");
     }
 
+    //如果本类没有指定线程则使用channel的绑定线程
     @Override
     protected EventExecutor executor() {
         EventExecutor e = super.executor();
@@ -68,6 +58,7 @@ public class DefaultChannelPromise extends DefaultPromise<Void> implements Chann
         return channel;
     }
 
+    //判断是否CAS更新结果成功，成功就激活监听器，失败就报错
     @Override
     public ChannelPromise setSuccess() {
         return setSuccess(null);
@@ -78,60 +69,57 @@ public class DefaultChannelPromise extends DefaultPromise<Void> implements Chann
         super.setSuccess(result);
         return this;
     }
-
+    //判断是否CAS更新结果成功，成功就激活监听器
     @Override
     public boolean trySuccess() {
         return trySuccess(null);
     }
 
+    //判断是否CAS更新结果成功，成功就激活监听器
     @Override
     public ChannelPromise setFailure(Throwable cause) {
         super.setFailure(cause);
         return this;
     }
 
+    //加减监听器的重载方法
     @Override
     public ChannelPromise addListener(GenericFutureListener<? extends Future<? super Void>> listener) {
         super.addListener(listener);
         return this;
     }
-
     @Override
     public ChannelPromise addListeners(GenericFutureListener<? extends Future<? super Void>>... listeners) {
         super.addListeners(listeners);
         return this;
     }
-
     @Override
     public ChannelPromise removeListener(GenericFutureListener<? extends Future<? super Void>> listener) {
         super.removeListener(listener);
         return this;
     }
-
     @Override
     public ChannelPromise removeListeners(GenericFutureListener<? extends Future<? super Void>>... listeners) {
         super.removeListeners(listeners);
         return this;
     }
 
+    //阻塞等待
     @Override
     public ChannelPromise sync() throws InterruptedException {
         super.sync();
         return this;
     }
-
     @Override
     public ChannelPromise syncUninterruptibly() {
         super.syncUninterruptibly();
         return this;
     }
-
     @Override
     public ChannelPromise await() throws InterruptedException {
         super.await();
         return this;
     }
-
     @Override
     public ChannelPromise awaitUninterruptibly() {
         super.awaitUninterruptibly();

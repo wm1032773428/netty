@@ -74,10 +74,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
     }
 
-    /**
-     * The {@link EventLoopGroup} which is used to handle all the events for the to-be-created
-     * {@link Channel}
-     */
+    // 会调用 channel() 方法,传人EventLoopGroup赋值给本类属性group
     public B group(EventLoopGroup group) {
         if (group == null) {
             throw new NullPointerException("group");
@@ -94,21 +91,19 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return (B) this;
     }
 
-    /**
-     * The {@link Class} which is used to create {@link Channel} instances from.
-     * You either use this or {@link #channelFactory(io.netty.channel.ChannelFactory)} if your
-     * {@link Channel} implementation has no no-args constructor.
-     */
+
+     // 会调用 channel() 方法, 传入 NioSocketChannel.class, 这个方法其实就是初始化了一个 BootstrapChannelFactory
+     // 然后赋值给本类属性channelFactory
     public B channel(Class<? extends C> channelClass) {
         if (channelClass == null) {
             throw new NullPointerException("channelClass");
         }
         return channelFactory(new ReflectiveChannelFactory<C>(channelClass));
     }
-
-    /**
-     * @deprecated Use {@link #channelFactory(io.netty.channel.ChannelFactory)} instead.
-     */
+    @SuppressWarnings({ "unchecked", "deprecation" })
+    public B channelFactory(io.netty.channel.ChannelFactory<? extends C> channelFactory) {
+        return channelFactory((ChannelFactory<C>) channelFactory);
+    }
     @Deprecated
     public B channelFactory(ChannelFactory<? extends C> channelFactory) {
         if (channelFactory == null) {
@@ -122,51 +117,49 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return self();
     }
 
-    /**
-     * {@link io.netty.channel.ChannelFactory} which is used to create {@link Channel} instances from
-     * when calling {@link #bind()}. This method is usually only used if {@link #channel(Class)}
-     * is not working for you because of some more complex needs. If your {@link Channel} implementation
-     * has a no-args constructor, its highly recommend to just use {@link #channel(Class)} to
-     * simplify your code.
-     */
-    @SuppressWarnings({ "unchecked", "deprecation" })
-    public B channelFactory(io.netty.channel.ChannelFactory<? extends C> channelFactory) {
-        return channelFactory((ChannelFactory<C>) channelFactory);
-    }
-
-    /**
-     * The {@link SocketAddress} which is used to bind the local "end" to.
-     */
+    //封装端口号和ip赋值本类属性localAddress
     public B localAddress(SocketAddress localAddress) {
         this.localAddress = localAddress;
         return self();
     }
-
-    /**
-     * @see #localAddress(SocketAddress)
-     */
     public B localAddress(int inetPort) {
         return localAddress(new InetSocketAddress(inetPort));
     }
-
-    /**
-     * @see #localAddress(SocketAddress)
-     */
     public B localAddress(String inetHost, int inetPort) {
         return localAddress(SocketUtils.socketAddress(inetHost, inetPort));
     }
-
-    /**
-     * @see #localAddress(SocketAddress)
-     */
     public B localAddress(InetAddress inetHost, int inetPort) {
         return localAddress(new InetSocketAddress(inetHost, inetPort));
     }
 
-    /**
-     * Allow to specify a {@link ChannelOption} which is used for the {@link Channel} instances once they got
-     * created. Use a value of {@code null} to remove a previous set {@link ChannelOption}.
-     */
+    //channel.config()=ChannelConfig，设置指定Channel的config
+    static void setChannelOptions(
+            Channel channel, Map<ChannelOption<?>, Object> options, InternalLogger logger) {
+        for (Map.Entry<ChannelOption<?>, Object> e: options.entrySet()) {
+            setChannelOption(channel, e.getKey(), e.getValue(), logger);
+        }
+    }
+    static void setChannelOptions(
+            Channel channel, Map.Entry<ChannelOption<?>, Object>[] options, InternalLogger logger) {
+        for (Map.Entry<ChannelOption<?>, Object> e: options) {
+            setChannelOption(channel, e.getKey(), e.getValue(), logger);
+        }
+    }
+    @SuppressWarnings("unchecked")
+    private static void setChannelOption(
+            Channel channel, ChannelOption<?> option, Object value, InternalLogger logger) {
+        try {
+            if (!channel.config().setOption((ChannelOption<Object>) option, value)) {
+                logger.warn("Unknown channel option '{}' for channel '{}'", option, channel);
+            }
+        } catch (Throwable t) {
+            logger.warn(
+                    "Failed to set channel option '{}' with value '{}' for channel '{}'", option, value, channel, t);
+        }
+    }
+
+
+    //Map<ChannelOption<?>, Object> options 增删
     public <T> B option(ChannelOption<T> option, T value) {
         if (option == null) {
             throw new NullPointerException("option");
@@ -183,10 +176,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return self();
     }
 
-    /**
-     * Allow to specify an initial attribute of the newly created {@link Channel}.  If the {@code value} is
-     * {@code null}, the attribute of the specified {@code key} is removed.
-     */
+    //Map<AttributeKey<?>, Object> attrs 增删
     public <T> B attr(AttributeKey<T> key, T value) {
         if (key == null) {
             throw new NullPointerException("key");
@@ -203,10 +193,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return self();
     }
 
-    /**
-     * Validate all the parameters. Sub-classes may override this, but should
-     * call the super method in that case.
-     */
+    //bind之前非空校验
     public B validate() {
         if (group == null) {
             throw new IllegalStateException("group not set");
@@ -217,26 +204,18 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return self();
     }
 
-    /**
-     * Returns a deep clone of this bootstrap which has the identical configuration.  This method is useful when making
-     * multiple {@link Channel}s with similar settings.  Please note that this method does not clone the
-     * {@link EventLoopGroup} deeply but shallowly, making the group a shared resource.
-     */
-    @Override
-    @SuppressWarnings("CloneDoesntDeclareCloneNotSupportedException")
-    public abstract B clone();
-
-    /**
-     * Create a new {@link Channel} and register it with an {@link EventLoop}.
-     */
     public ChannelFuture register() {
         validate();
         return initAndRegister();
     }
 
-    /**
-     * Create a new {@link Channel} and bind it.
-     */
+
+
+
+
+
+
+    //bind的重载方法
     public ChannelFuture bind() {
         validate();
         SocketAddress localAddress = this.localAddress;
@@ -245,31 +224,15 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
         return doBind(localAddress);
     }
-
-    /**
-     * Create a new {@link Channel} and bind it.
-     */
     public ChannelFuture bind(int inetPort) {
         return bind(new InetSocketAddress(inetPort));
     }
-
-    /**
-     * Create a new {@link Channel} and bind it.
-     */
     public ChannelFuture bind(String inetHost, int inetPort) {
         return bind(SocketUtils.socketAddress(inetHost, inetPort));
     }
-
-    /**
-     * Create a new {@link Channel} and bind it.
-     */
     public ChannelFuture bind(InetAddress inetHost, int inetPort) {
         return bind(new InetSocketAddress(inetHost, inetPort));
     }
-
-    /**
-     * Create a new {@link Channel} and bind it.
-     */
     public ChannelFuture bind(SocketAddress localAddress) {
         validate();
         if (localAddress == null) {
@@ -278,6 +241,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return doBind(localAddress);
     }
 
+    //
     private ChannelFuture doBind(final SocketAddress localAddress) {
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
@@ -314,6 +278,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
     }
 
+    //通过channelFactory工厂生成channel，调用子类的init方法初始化channel
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
@@ -339,19 +304,48 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             }
         }
 
-        // If we are here and the promise is not failed, it's one of the following cases:
-        // 1) If we attempted registration from the event loop, the registration has been completed at this point.
-        //    i.e. It's safe to attempt bind() or connect() now because the channel has been registered.
-        // 2) If we attempted registration from the other thread, the registration request has been successfully
-        //    added to the event loop's task queue for later execution.
-        //    i.e. It's safe to attempt bind() or connect() now:
-        //         because bind() or connect() will be executed *after* the scheduled registration task is executed
-        //         because register(), bind(), and connect() are all bound to the same thread.
+
+
+        //如果我们在这里且承诺未失败，则是以下情况之一：
+        // 1）如果我们尝试从事件循环进行注册，则此时已完成注册。
+        //即现在尝试bind（）或connect（）是安全的，因为频道已经注册。
+        // 2）如果我们尝试从另一个线程注册，则注册请求已成功
+        //添加到事件循环的任务队列以供稍后执行。
+        //即现在尝试bind（）或connect（）是安全的：
+        //因为在*执行预定的注册任务之后将执行bind（）或connect（）*
+        //因为register（），bind（）和connect（）都绑定到同一个线程。
 
         return regFuture;
     }
 
-    abstract void init(Channel channel) throws Exception;
+    static final class PendingRegistrationPromise extends DefaultChannelPromise {
+
+        // Is set to the correct EventExecutor once the registration was successful. Otherwise it will
+        // stay null and so the GlobalEventExecutor.INSTANCE will be used for notifications.
+        private volatile boolean registered;
+
+        PendingRegistrationPromise(Channel channel) {
+            super(channel);
+        }
+
+        void registered() {
+            registered = true;
+        }
+
+        @Override
+        protected EventExecutor executor() {
+            if (registered) {
+                // If the registration was a success executor is set.
+                //
+                // See https://github.com/netty/netty/issues/2586
+                return super.executor();
+            }
+            // The registration failed so we can only use the GlobalEventExecutor as last resort to notify.
+            return GlobalEventExecutor.INSTANCE;
+        }
+    }
+
+
 
     private static void doBind0(
             final ChannelFuture regFuture, final Channel channel,
@@ -371,9 +365,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         });
     }
 
-    /**
-     * the {@link ChannelHandler} to use for serving the requests.
-     */
+    abstract void init(Channel channel) throws Exception;
+
+    //赋值handler
     public B handler(ChannelHandler handler) {
         if (handler == null) {
             throw new NullPointerException("handler");
@@ -382,20 +376,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return self();
     }
 
-    /**
-     * Returns the configured {@link EventLoopGroup} or {@code null} if non is configured yet.
-     *
-     * @deprecated Use {@link #config()} instead.
-     */
-    @Deprecated
-    public final EventLoopGroup group() {
-        return group;
-    }
 
-    /**
-     * Returns the {@link AbstractBootstrapConfig} object that can be used to obtain the current config
-     * of the bootstrap.
-     */
     public abstract AbstractBootstrapConfig<B, C> config();
 
     static <K, V> Map<K, V> copiedMap(Map<K, V> map) {
@@ -407,6 +388,11 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             copied = new LinkedHashMap<K, V>(map);
         }
         return Collections.unmodifiableMap(copied);
+    }
+
+    @Deprecated
+    public final EventLoopGroup group() {
+        return group;
     }
 
     final Map<ChannelOption<?>, Object> options0() {
@@ -438,32 +424,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return copiedMap(attrs);
     }
 
-    static void setChannelOptions(
-            Channel channel, Map<ChannelOption<?>, Object> options, InternalLogger logger) {
-        for (Map.Entry<ChannelOption<?>, Object> e: options.entrySet()) {
-            setChannelOption(channel, e.getKey(), e.getValue(), logger);
-        }
-    }
-
-    static void setChannelOptions(
-            Channel channel, Map.Entry<ChannelOption<?>, Object>[] options, InternalLogger logger) {
-        for (Map.Entry<ChannelOption<?>, Object> e: options) {
-            setChannelOption(channel, e.getKey(), e.getValue(), logger);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static void setChannelOption(
-            Channel channel, ChannelOption<?> option, Object value, InternalLogger logger) {
-        try {
-            if (!channel.config().setOption((ChannelOption<Object>) option, value)) {
-                logger.warn("Unknown channel option '{}' for channel '{}'", option, channel);
-            }
-        } catch (Throwable t) {
-            logger.warn(
-                    "Failed to set channel option '{}' with value '{}' for channel '{}'", option, value, channel, t);
-        }
-    }
+    @Override
+    @SuppressWarnings("CloneDoesntDeclareCloneNotSupportedException")
+    public abstract B clone();
 
     @Override
     public String toString() {
@@ -473,30 +436,5 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return buf.toString();
     }
 
-    static final class PendingRegistrationPromise extends DefaultChannelPromise {
 
-        // Is set to the correct EventExecutor once the registration was successful. Otherwise it will
-        // stay null and so the GlobalEventExecutor.INSTANCE will be used for notifications.
-        private volatile boolean registered;
-
-        PendingRegistrationPromise(Channel channel) {
-            super(channel);
-        }
-
-        void registered() {
-            registered = true;
-        }
-
-        @Override
-        protected EventExecutor executor() {
-            if (registered) {
-                // If the registration was a success executor is set.
-                //
-                // See https://github.com/netty/netty/issues/2586
-                return super.executor();
-            }
-            // The registration failed so we can only use the GlobalEventExecutor as last resort to notify.
-            return GlobalEventExecutor.INSTANCE;
-        }
-    }
 }

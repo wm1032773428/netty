@@ -32,62 +32,42 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(DefaultPromise.class);
+
     private static final InternalLogger rejectedExecutionLogger =
             InternalLoggerFactory.getInstance(DefaultPromise.class.getName() + ".rejectedExecution");
+
     private static final int MAX_LISTENER_STACK_DEPTH = Math.min(8,
             SystemPropertyUtil.getInt("io.netty.defaultPromise.maxListenerStackDepth", 8));
+
     @SuppressWarnings("rawtypes")
     private static final AtomicReferenceFieldUpdater<DefaultPromise, Object> RESULT_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(DefaultPromise.class, Object.class, "result");
+    private volatile Object result;
+
     private static final Object SUCCESS = new Object();
     private static final Object UNCANCELLABLE = new Object();
+
     private static final CauseHolder CANCELLATION_CAUSE_HOLDER = new CauseHolder(ThrowableUtil.unknownStackTrace(
             new CancellationException(), DefaultPromise.class, "cancel(...)"));
 
-    private volatile Object result;
+
     private final EventExecutor executor;
-    /**
-     * One or more listeners. Can be a {@link GenericFutureListener} or a {@link DefaultFutureListeners}.
-     * If {@code null}, it means either 1) no listeners were added yet or 2) all listeners were notified.
-     *
-     * Threading - synchronized(this). We must support adding listeners when there is no EventExecutor.
-     */
+
     private Object listeners;
-    /**
-     * Threading - synchronized(this). We are required to hold the monitor to use Java's underlying wait()/notifyAll().
-     */
+
     private short waiters;
 
-    /**
-     * Threading - synchronized(this). We must prevent concurrent notification and FIFO listener notification if the
-     * executor changes.
-     */
     private boolean notifyingListeners;
 
-    /**
-     * Creates a new instance.
-     *
-     * It is preferable to use {@link EventExecutor#newPromise()} to create a new promise
-     *
-     * @param executor
-     *        the {@link EventExecutor} which is used to notify the promise once it is complete.
-     *        It is assumed this executor will protect against {@link StackOverflowError} exceptions.
-     *        The executor may be used to avoid {@link StackOverflowError} by executing a {@link Runnable} if the stack
-     *        depth exceeds a threshold.
-     *
-     */
     public DefaultPromise(EventExecutor executor) {
         this.executor = checkNotNull(executor, "executor");
     }
 
-    /**
-     * See {@link #executor()} for expectations of the executor.
-     */
     protected DefaultPromise() {
-        // only for subclasses
         executor = null;
     }
 
+    //判断是否CAS更新结果成功，成功就激活监听器,失败,set方法报错,try方法返回false
     @Override
     public Promise<V> setSuccess(V result) {
         if (setSuccess0(result)) {
@@ -96,7 +76,6 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
         }
         throw new IllegalStateException("complete already: " + this);
     }
-
     @Override
     public boolean trySuccess(V result) {
         if (setSuccess0(result)) {
@@ -105,7 +84,6 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
         }
         return false;
     }
-
     @Override
     public Promise<V> setFailure(Throwable cause) {
         if (setFailure0(cause)) {
@@ -114,7 +92,6 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
         }
         throw new IllegalStateException("complete already: " + this, cause);
     }
-
     @Override
     public boolean tryFailure(Throwable cause) {
         if (setFailure0(cause)) {
