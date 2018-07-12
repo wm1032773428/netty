@@ -73,13 +73,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     private ScheduledFuture<?> connectTimeoutFuture;
     private SocketAddress requestedRemoteAddress;
 
-    /**
-     * Create a new instance
-     *
-     * @param parent            the parent {@link Channel} by which this instance was created. May be {@code null}
-     * @param ch                the underlying {@link SelectableChannel} on which it operates
-     * @param readInterestOp    the ops to set to receive data from the {@link SelectableChannel}
-     */
+    //SelectableChannel ch为原始SocketChannel，readInterestOp为SelectionKey.OP_READ
     protected AbstractNioChannel(Channel parent, SelectableChannel ch, int readInterestOp) {
         super(parent);
         this.ch = ch;

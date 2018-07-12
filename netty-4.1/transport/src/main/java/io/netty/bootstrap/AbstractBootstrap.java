@@ -241,8 +241,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return doBind(localAddress);
     }
 
-    //
+
     private ChannelFuture doBind(final SocketAddress localAddress) {
+        //异步方法
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
         if (regFuture.cause() != null) {
@@ -250,26 +251,21 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
 
         if (regFuture.isDone()) {
-            // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
+            //如果上一步完成则连接远程服务器，异步方法
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
         } else {
-            // Registration future is almost always fulfilled already, but just in case it's not.
+            // 如果上一步没有完成，设置监听器等完成时执行连接远程服务器
             final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);
             regFuture.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     Throwable cause = future.cause();
-                    if (cause != null) {
-                        // Registration on the EventLoop failed so fail the ChannelPromise directly to not cause an
-                        // IllegalStateException once we try to access the EventLoop of the Channel.
+                    if (cause != null) {//如果上一步失败，直接设置失败返回
                         promise.setFailure(cause);
-                    } else {
-                        // Registration was successful, so set the correct executor to use.
-                        // See https://github.com/netty/netty/issues/2586
+                    } else {//如果上一步成功，连接远程服务器
                         promise.registered();
-
                         doBind0(regFuture, channel, localAddress, promise);
                     }
                 }
@@ -278,11 +274,13 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
     }
 
-    //通过channelFactory工厂生成channel，调用子类的init方法初始化channel
+
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
+            //通过channelFactory工厂生成channel，
             channel = channelFactory.newChannel();
+            //调用子类的init方法初始化channel
             init(channel);
         } catch (Throwable t) {
             if (channel != null) {
@@ -294,7 +292,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
-
+        //将EventLoopGroup绑定到channel
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
@@ -303,19 +301,23 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
                 channel.unsafe().closeForcibly();
             }
         }
-
-
-
-        //如果我们在这里且承诺未失败，则是以下情况之一：
-        // 1）如果我们尝试从事件循环进行注册，则此时已完成注册。
-        //即现在尝试bind（）或connect（）是安全的，因为频道已经注册。
-        // 2）如果我们尝试从另一个线程注册，则注册请求已成功
-        //添加到事件循环的任务队列以供稍后执行。
-        //即现在尝试bind（）或connect（）是安全的：
-        //因为在*执行预定的注册任务之后将执行bind（）或connect（）*
-        //因为register（），bind（）和connect（）都绑定到同一个线程。
-
         return regFuture;
+    }
+
+    private static void doBind0(
+            final ChannelFuture regFuture, final Channel channel,
+            final SocketAddress localAddress, final ChannelPromise promise) {
+        channel.eventLoop().execute(new Runnable() {
+            @Override
+            public void run() {
+                if (regFuture.isSuccess()) {
+                    //真正连接远程服务的方法，异步返回结果加监听器，失败就关闭channel
+                    channel.bind(localAddress, promise).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
+                } else {
+                    promise.setFailure(regFuture.cause());
+                }
+            }
+        });
     }
 
     static final class PendingRegistrationPromise extends DefaultChannelPromise {
@@ -347,23 +349,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
 
 
-    private static void doBind0(
-            final ChannelFuture regFuture, final Channel channel,
-            final SocketAddress localAddress, final ChannelPromise promise) {
 
-        // This method is invoked before channelRegistered() is triggered.  Give user handlers a chance to set up
-        // the pipeline in its channelRegistered() implementation.
-        channel.eventLoop().execute(new Runnable() {
-            @Override
-            public void run() {
-                if (regFuture.isSuccess()) {
-                    channel.bind(localAddress, promise).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
-                } else {
-                    promise.setFailure(regFuture.cause());
-                }
-            }
-        });
-    }
 
     abstract void init(Channel channel) throws Exception;
 

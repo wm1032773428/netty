@@ -72,16 +72,13 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     private boolean strValActive;
     private String strVal;
 
-    /**
-     * Creates a new instance.
-     *
-     * @param parent
-     *        the parent of this channel. {@code null} if there's no parent.
-     */
+    //初始化
     protected AbstractChannel(Channel parent) {
         this.parent = parent;
         id = newId();
+        //unsafe实例化一个unsafe对象,它的类型是 AbstractNioByteChannel.NioByteUnsafe内部类
         unsafe = newUnsafe();
+        //每个channel只唯一绑定一个pipeline
         pipeline = newChannelPipeline();
     }
 
