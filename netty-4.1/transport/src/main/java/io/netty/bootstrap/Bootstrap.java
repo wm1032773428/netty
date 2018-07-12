@@ -160,30 +160,27 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
      * @see #connect()
      */
     private ChannelFuture doResolveAndConnect(final SocketAddress remoteAddress, final SocketAddress localAddress) {
+        //初始化Channel，将Channel注册到EventGroup上分给具体的NioEventLoop
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
-
+        //如果initAndRegister完成，就执行连接服务器（Connect）的操作
         if (regFuture.isDone()) {
             if (!regFuture.isSuccess()) {
                 return regFuture;
             }
             return doResolveAndConnect0(channel, remoteAddress, localAddress, channel.newPromise());
         } else {
-            // Registration future is almost always fulfilled already, but just in case it's not.
+            //如果initAndRegister没有完成，就加入执行连接服务器（Connect）的监听器
             final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);
             regFuture.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
-                    // Directly obtain the cause and do a null check so we only need one volatile read in case of a
-                    // failure.
                     Throwable cause = future.cause();
                     if (cause != null) {
-                        // Registration on the EventLoop failed so fail the ChannelPromise directly to not cause an
-                        // IllegalStateException once we try to access the EventLoop of the Channel.
+                        //如果initAndRegister失败，直接返回是吧
                         promise.setFailure(cause);
                     } else {
-                        // Registration was successful, so set the correct executor to use.
-                        // See https://github.com/netty/netty/issues/2586
+                        //如果initAndRegister成功，执行连接服务器（Connect）
                         promise.registered();
                         doResolveAndConnect0(channel, remoteAddress, localAddress, promise);
                     }

@@ -35,38 +35,22 @@ import java.util.concurrent.ThreadFactory;
  */
 public class NioEventLoopGroup extends MultithreadEventLoopGroup {
 
-    /**
-     * Create a new instance using the default number of threads, the default {@link ThreadFactory} and
-     * the {@link SelectorProvider} which is returned by {@link SelectorProvider#provider()}.
-     */
-    public NioEventLoopGroup() {
-        this(0);
-    }
 
-    /**
-     * Create a new instance using the specified number of threads, {@link ThreadFactory} and the
-     * {@link SelectorProvider} which is returned by {@link SelectorProvider#provider()}.
-     */
+    public NioEventLoopGroup() { this(0); }
+
     public NioEventLoopGroup(int nThreads) {
         this(nThreads, (Executor) null);
     }
 
-    /**
-     * Create a new instance using the specified number of threads, the given {@link ThreadFactory} and the
-     * {@link SelectorProvider} which is returned by {@link SelectorProvider#provider()}.
-     */
     public NioEventLoopGroup(int nThreads, ThreadFactory threadFactory) {
         this(nThreads, threadFactory, SelectorProvider.provider());
     }
 
     public NioEventLoopGroup(int nThreads, Executor executor) {
+        //SelectorProvider.provider() 调用底层的WindowsSelectorImpl的openSelector生成唯一的select
         this(nThreads, executor, SelectorProvider.provider());
     }
 
-    /**
-     * Create a new instance using the specified number of threads, the given {@link ThreadFactory} and the given
-     * {@link SelectorProvider}.
-     */
     public NioEventLoopGroup(
             int nThreads, ThreadFactory threadFactory, final SelectorProvider selectorProvider) {
         this(nThreads, threadFactory, selectorProvider, DefaultSelectStrategyFactory.INSTANCE);

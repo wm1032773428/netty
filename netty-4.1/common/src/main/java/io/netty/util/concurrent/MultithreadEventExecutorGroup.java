@@ -71,13 +71,11 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         if (nThreads <= 0) {
             throw new IllegalArgumentException(String.format("nThreads: %d (expected: > 0)", nThreads));
         }
-
         if (executor == null) {
+            //group共享的线程工厂，第一次NioEventLoop是从这里获取新的Thread绑定的
             executor = new ThreadPerTaskExecutor(newDefaultThreadFactory());
         }
-
         children = new EventExecutor[nThreads];
-
         for (int i = 0; i < nThreads; i ++) {
             boolean success = false;
             try {
@@ -86,28 +84,9 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
             } catch (Exception e) {
                 // TODO: Think about if this is a good exception type
                 throw new IllegalStateException("failed to create a child event loop", e);
-            } finally {
-                if (!success) {
-                    for (int j = 0; j < i; j ++) {
-                        children[j].shutdownGracefully();
-                    }
-
-                    for (int j = 0; j < i; j ++) {
-                        EventExecutor e = children[j];
-                        try {
-                            while (!e.isTerminated()) {
-                                e.awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
-                            }
-                        } catch (InterruptedException interrupted) {
-                            // Let the caller handle the interruption.
-                            Thread.currentThread().interrupt();
-                            break;
-                        }
-                    }
-                }
             }
         }
-
+        //确定选择器
         chooser = chooserFactory.newChooser(children);
 
         final FutureListener<Object> terminationListener = new FutureListener<Object>() {

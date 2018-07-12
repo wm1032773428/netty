@@ -91,11 +91,14 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
     protected DefaultChannelPipeline(Channel channel) {
         this.channel = ObjectUtil.checkNotNull(channel, "channel");
+        //完成channelFuture,因为已经完成所以加入的监听器都立即执行
         succeededFuture = new SucceededChannelFuture(channel, null);
+        //异常channelFuture，初始化默认的监听器，默认的是异常传播（channel.pipeline().fireExceptionCaught(cause)）监听器
         voidPromise =  new VoidChannelPromise(channel, true);
 
-        tail = new TailContext(this);
-        head = new HeadContext(this);
+        //双向链表
+        tail = new TailContext(this);//ChannelInboundHandler
+        head = new HeadContext(this);//ChannelOutboundHandler
 
         head.next = tail;
         tail.prev = head;
@@ -1264,7 +1267,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         }
     }
 
-    // A special catch-all handler that handles both bytes and messages.
+    // 默认加入的尾节点Handler
     final class TailContext extends AbstractChannelHandlerContext implements ChannelInboundHandler {
 
         TailContext(DefaultChannelPipeline pipeline) {
@@ -1324,7 +1327,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
             onUnhandledInboundChannelReadComplete();
         }
     }
-
+    // 默认加入的头节点Handler
     final class HeadContext extends AbstractChannelHandlerContext
             implements ChannelOutboundHandler, ChannelInboundHandler {
 

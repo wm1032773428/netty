@@ -75,6 +75,8 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
 
     @Override
     public EventLoop next() {
+        //MultithreadEventExecutorGroup的chooser.next();
+        //选择器去选择的NioEventLoop
         return (EventLoop) super.next();
     }
 

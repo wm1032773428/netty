@@ -20,15 +20,12 @@ import io.netty.util.internal.UnstableApi;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Default implementation which uses simple round-robin to choose next {@link EventExecutor}.
+ * 选择策略工厂，提供两种选择策略
  */
 @UnstableApi
 public final class DefaultEventExecutorChooserFactory implements EventExecutorChooserFactory {
-
     public static final DefaultEventExecutorChooserFactory INSTANCE = new DefaultEventExecutorChooserFactory();
-
     private DefaultEventExecutorChooserFactory() { }
-
     @SuppressWarnings("unchecked")
     @Override
     public EventExecutorChooser newChooser(EventExecutor[] executors) {
@@ -38,11 +35,9 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
             return new GenericEventExecutorChooser(executors);
         }
     }
-
     private static boolean isPowerOfTwo(int val) {
         return (val & -val) == val;
     }
-
     private static final class PowerOfTwoEventExecutorChooser implements EventExecutorChooser {
         private final AtomicInteger idx = new AtomicInteger();
         private final EventExecutor[] executors;
@@ -56,7 +51,6 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
             return executors[idx.getAndIncrement() & executors.length - 1];
         }
     }
-
     private static final class GenericEventExecutorChooser implements EventExecutorChooser {
         private final AtomicInteger idx = new AtomicInteger();
         private final EventExecutor[] executors;

@@ -870,10 +870,11 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     private void doStartThread() {
         assert thread == null;
+        //这个executor是从NioEventLoopGroup传人进来的，所有NioEventLoop公用的线程工厂
         executor.execute(new Runnable() {
             @Override
             public void run() {
-                thread = Thread.currentThread();
+                thread = Thread.currentThread();//隐藏的很深，这个是NioEventLoop与thread绑定的地方
                 if (interrupted) {
                     thread.interrupt();
                 }
