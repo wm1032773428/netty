@@ -258,14 +258,19 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     @Override
     @SuppressWarnings("unchecked")
     void init(Channel channel) throws Exception {
+        // initAndRegister里面的channel = channelFactory.newChannel();时绑定的pipeline
         ChannelPipeline p = channel.pipeline();
-        p.addLast(config.handler());
 
+        //Bootstrap的BootstrapConfig的handler就是Bootstrap.handler()时放进来的
+        p.addLast(config.handler());
+        //取出Bootstrap的options放入channel的config里面
         final Map<ChannelOption<?>, Object> options = options0();
         synchronized (options) {
             setChannelOptions(channel, options, logger);
         }
-
+        //channel的父类DefaultAttributeMap维护一个并发的引用数组，每个数组元素上面是一个双向链表
+        //链表的元素是一个AtomicReference，值为属性值
+        //AttributeKey是一个包含name和id的对象池子，name不能重名
         final Map<AttributeKey<?>, Object> attrs = attrs0();
         synchronized (attrs) {
             for (Entry<AttributeKey<?>, Object> e: attrs.entrySet()) {

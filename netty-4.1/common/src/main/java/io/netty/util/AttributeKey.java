@@ -15,15 +15,11 @@
  */
 package io.netty.util;
 
-/**
- * Key which can be used to access {@link Attribute} out of the {@link AttributeMap}. Be aware that it is not be
- * possible to have multiple keys with the same name.
- *
- * @param <T>   the type of the {@link Attribute} which can be accessed via this {@link AttributeKey}.
- */
+/
 @SuppressWarnings("UnusedDeclaration") // 'T' is used only at compile time
 public final class AttributeKey<T> extends AbstractConstant<AttributeKey<T>> {
 
+    //这个池子就像一个map，key是name，value是AttributeKey，自定义构造方法
     private static final ConstantPool<AttributeKey<Object>> pool = new ConstantPool<AttributeKey<Object>>() {
         @Override
         protected AttributeKey<Object> newConstant(int id, String name) {
@@ -31,25 +27,18 @@ public final class AttributeKey<T> extends AbstractConstant<AttributeKey<T>> {
         }
     };
 
-    /**
-     * Returns the singleton instance of the {@link AttributeKey} which has the specified {@code name}.
-     */
+//    池子里面取get
     @SuppressWarnings("unchecked")
     public static <T> AttributeKey<T> valueOf(String name) {
         return (AttributeKey<T>) pool.valueOf(name);
     }
 
-    /**
-     * Returns {@code true} if a {@link AttributeKey} exists for the given {@code name}.
-     */
+//    测试池子里面有没有
     public static boolean exists(String name) {
         return pool.exists(name);
     }
 
-    /**
-     * Creates a new {@link AttributeKey} for the given {@code name} or fail with an
-     * {@link IllegalArgumentException} if a {@link AttributeKey} for the given {@code name} exists.
-     */
+//  调用池子的抽象实例化方法，其实还是自己的
     @SuppressWarnings("unchecked")
     public static <T> AttributeKey<T> newInstance(String name) {
         return (AttributeKey<T>) pool.newInstance(name);
